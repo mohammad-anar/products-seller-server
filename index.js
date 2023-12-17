@@ -40,14 +40,38 @@ async function run() {
     });
 
     // carts api
+    app.get("/carts", async (req, res) => {
+      try{
+        const result = await cartCollection.find().toArray();
+        const count = await cartCollection.estimatedDocumentCount();
+        res.send({data: result, count})
+      }catch(error){
+        console.log(error);
+      }
+    })
     app.post("/carts", async (req, res) => {
       try {
         const { id } = req.body;
         const productId = new ObjectId(id);
         const query = {_id: productId}
+
+        // find item form product collection 
         const cartProduct = await productCollection.findOne(query);
-        const result = await cartCollection.insertOne(cartProduct);
-        res.send(result)
+        
+        // check item isExist on cart collection 
+        const isExist = await cartCollection.findOne(query);
+      
+        if (!isExist) {
+          const result = await cartCollection.insertOne({...cartProduct, quantity: 1});
+          return res.send(result);
+          
+        }else{
+          const result = await cartCollection.updateOne(query, {$set: {quantity: isExist?.quantity + 1}})
+        }
+
+        // add item to cart collection 
+        
+        
       } catch (error) {
         console.log(error);
       }
