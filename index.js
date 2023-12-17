@@ -4,7 +4,7 @@ const cors = require("cors");
 // DOT ENV
 require("dotenv").config();
 // MONGO DB
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 // MAKE APP
 const app = express();
 // running port
@@ -28,19 +28,31 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-
-    // electronics db and collection are included     
-    const db = client.db("du-electronics")    
-    const productsCollection = db.collection("products");
+    // electronics db and collection are included
+    const db = client.db("du-electronics");
+    const productCollection = db.collection("products");
+    const cartCollection = db.collection("carts");
 
     // get products
     app.get("/products", async (req, res) => {
-      const result = await productsCollection.find().toArray();
+      const result = await productCollection.find().toArray();
       res.send(result);
     });
 
-    // Send a ping to confirm a successful connection
-    
+    // carts api
+    app.post("/carts", async (req, res) => {
+      try {
+        const { id } = req.body;
+        const productId = new ObjectId(id);
+        const query = {_id: productId}
+        const cartProduct = await productCollection.findOne(query);
+        const result = await cartCollection.insertOne(cartProduct);
+        res.send(result)
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
