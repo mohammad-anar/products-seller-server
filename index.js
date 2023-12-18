@@ -62,20 +62,36 @@ async function run() {
         const isExist = await cartCollection.findOne(query);
       
         if (!isExist) {
+          // insert item 
           const result = await cartCollection.insertOne({...cartProduct, quantity: 1});
           return res.send(result);
           
         }else{
+          // update item 
           const result = await cartCollection.updateOne(query, {$set: {quantity: isExist?.quantity + 1}})
+          return res.send(result);
         }
-
-        // add item to cart collection 
         
         
       } catch (error) {
         console.log(error);
       }
     });
+    app.delete("/carts", async (req, res) => {
+      try{
+        const id = req?.query?.id;
+        const query = {_id: new ObjectId(id)}
+        if(id){
+          const result = await cartCollection.deleteOne(query)
+        return res.send(result)
+        }else{
+          const result = await cartCollection.deleteMany({})
+        return res.send(result)
+        }
+      }catch(error){
+        console.log(error);
+      }
+    })
 
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
