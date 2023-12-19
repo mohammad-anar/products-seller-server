@@ -32,66 +32,125 @@ async function run() {
     const db = client.db("du-electronics");
     const productCollection = db.collection("products");
     const cartCollection = db.collection("carts");
+    const favouriteCollection = db.collection("favourites");
 
     // get products
     app.get("/products", async (req, res) => {
       const result = await productCollection.find().toArray();
       res.send(result);
     });
+    // get single product by id
+    app.get("/products/:id", async (req, res) => {
+      const id = req.params?.id;
+      console.log(id, "form single product");
+      const productId = new ObjectId(id);
+      const query = {_id : productId}
+      const result = await productCollection.findOne(query);
+      res.send(result);
+    });
 
-    // carts api
+    // carts api=========================================
     app.get("/carts", async (req, res) => {
-      try{
+      try {
         const result = await cartCollection.find().toArray();
         const count = await cartCollection.estimatedDocumentCount();
-        res.send({data: result, count})
-      }catch(error){
+        res.send({ data: result, count });
+      } catch (error) {
         console.log(error);
       }
-    })
+    });
     app.post("/carts", async (req, res) => {
       try {
         const { id } = req.body;
         const productId = new ObjectId(id);
-        const query = {_id: productId}
+        const query = { _id: productId };
 
-        // find item form product collection 
+        // find item form product collection
         const cartProduct = await productCollection.findOne(query);
-        
-        // check item isExist on cart collection 
+
+        // check item isExist on cart collection
         const isExist = await cartCollection.findOne(query);
-      
+
         if (!isExist) {
-          // insert item 
-          const result = await cartCollection.insertOne({...cartProduct, quantity: 1});
+          // insert item
+          const result = await cartCollection.insertOne({
+            ...cartProduct,
+            quantity: 1,
+          });
           return res.send(result);
-          
-        }else{
-          // update item 
-          const result = await cartCollection.updateOne(query, {$set: {quantity: isExist?.quantity + 1}})
+        } else {
+          // update item
+          const result = await cartCollection.updateOne(query, {
+            $set: { quantity: isExist?.quantity + 1 },
+          });
           return res.send(result);
         }
-        
-        
       } catch (error) {
         console.log(error);
       }
     });
     app.delete("/carts", async (req, res) => {
-      try{
+      try {
         const id = req?.query?.id;
-        const query = {_id: new ObjectId(id)}
-        if(id){
-          const result = await cartCollection.deleteOne(query)
-        return res.send(result)
-        }else{
-          const result = await cartCollection.deleteMany({})
-        return res.send(result)
+        const query = { _id: new ObjectId(id) };
+        if (id) {
+          const result = await cartCollection.deleteOne(query);
+          return res.send(result);
+        } else {
+          const result = await cartCollection.deleteMany({});
+          return res.send(result);
         }
-      }catch(error){
+      } catch (error) {
         console.log(error);
       }
-    })
+    });
+
+    // favourite apis
+    app.get("/favourites", async (req, res) => {
+      try {
+        const result = await favouriteCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+    app.post("/favourites", async (req, res) => {
+      try {
+        const { id } = req.body;
+        const productId = new ObjectId(id);
+        const query = { _id: productId };
+
+        // find item form product collection
+        const cartProduct = await productCollection.findOne(query);
+
+        // check item isExist on cart collection
+        const isExist = await favouriteCollection.findOne(query);
+
+        if (!isExist) {
+          // insert item
+          const result = await favouriteCollection.insertOne({
+            ...cartProduct,
+            quantity: 1,
+          });
+          return res.send(result);
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    });
+    // delete favoueite
+    app.delete("/favourites/:id", async (req, res) => {
+      try {
+        const id = req?.params?.id;
+        console.log(id, "delete fav");
+        const query = { _id: new ObjectId(id) };
+
+        const result = await favouriteCollection.deleteOne(query);
+        return res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
 
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
