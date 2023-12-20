@@ -49,6 +49,7 @@ async function run() {
     const productCollection = db.collection("products");
     const cartCollection = db.collection("carts");
     const favouriteCollection = db.collection("favourites");
+    const userCollection = db.collection("users");
 
     // jwt apis ===========================
 
@@ -78,8 +79,6 @@ async function run() {
     // carts api=========================================
     app.get("/carts", verifyToken, async (req, res) => {
       try {
-        const verifyUser = req.user;
-        
         const result = await cartCollection.find().toArray();
         const count = await cartCollection.estimatedDocumentCount();
         res.send({ data: result, count });
@@ -87,7 +86,7 @@ async function run() {
         console.log(error);
       }
     });
-    app.post("/carts", async (req, res) => {
+    app.post("/carts",verifyToken, async (req, res) => {
       try {
         const { id } = req.body;
         const productId = new ObjectId(id);
@@ -117,7 +116,7 @@ async function run() {
         console.log(error);
       }
     });
-    app.delete("/carts", async (req, res) => {
+    app.delete("/carts", verifyToken, async (req, res) => {
       try {
         const id = req?.query?.id;
         const query = { _id: new ObjectId(id) };
@@ -134,7 +133,7 @@ async function run() {
     });
 
     // favourite apis
-    app.get("/favourites", async (req, res) => {
+    app.get("/favourites", verifyToken, async (req, res) => {
       try {
         const result = await favouriteCollection.find().toArray();
         res.send(result);
@@ -142,7 +141,7 @@ async function run() {
         console.log(error);
       }
     });
-    app.post("/favourites", async (req, res) => {
+    app.post("/favourites", verifyToken, async (req, res) => {
       try {
         const { id } = req.body;
         const productId = new ObjectId(id);
@@ -167,7 +166,7 @@ async function run() {
       }
     });
     // delete favoueite
-    app.delete("/favourites/:id", async (req, res) => {
+    app.delete("/favourites/:id",verifyToken, async (req, res) => {
       try {
         const id = req?.params?.id;
         console.log(id, "delete fav");
@@ -179,8 +178,15 @@ async function run() {
         console.log(error);
       }
     });
-    // sign up api or auth api here ==============================
-    app.post();
+    // user related api here ==============================
+
+    app.post("/users", async (req, res) => {
+      const data = req.body;
+      const date = new Date();
+      const user = {...data, createdAt: date.toGMTString(), role: "user"}
+      const result = await userCollection.insertOne(user);
+      res.send(result);
+    });
 
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
