@@ -44,6 +44,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
+    await client.connect();
     // electronics db and collection are included
     const db = client.db("du-electronics");
     const productCollection = db.collection("products");
@@ -63,8 +64,12 @@ async function run() {
 
     // get products==============================
     app.get("/products", async (req, res) => {
-      const result = await productCollection.find().toArray();
-      res.send(result);
+      const limit = Number(req.query?.size);
+      const pageNumber= Number(req.query?.page);
+      const skip = limit * pageNumber;
+      const count = await productCollection.estimatedDocumentCount();
+      const result = await productCollection.find({}).skip(skip).limit(limit).toArray();
+      res.send({result, count});
     });
     // get single product by id
     app.get("/products/:id", async (req, res) => {
@@ -79,7 +84,11 @@ async function run() {
     // carts api=========================================
     app.get("/carts", verifyToken, async (req, res) => {
       try {
-        const result = await cartCollection.find().toArray();
+        const email = req.query?.email;
+        const query = {
+          email
+        }
+        const result = await cartCollection.find(query).toArray();
         const count = await cartCollection.estimatedDocumentCount();
         res.send({ data: result, count });
       } catch (error) {
@@ -88,6 +97,7 @@ async function run() {
     });
     app.post("/carts",verifyToken, async (req, res) => {
       try {
+        const email = req.query.email;
         const { id } = req.body;
         const productId = new ObjectId(id);
         const query = { _id: productId };
@@ -103,6 +113,7 @@ async function run() {
           const result = await cartCollection.insertOne({
             ...cartProduct,
             quantity: 1,
+            email: email,
           });
           return res.send(result);
         } else {
@@ -116,7 +127,7 @@ async function run() {
         console.log(error);
       }
     });
-    app.delete("/carts", verifyToken, async (req, res) => {
+    app.delete(`/carts`, verifyToken, async (req, res) => {
       try {
         const id = req?.query?.id;
         const query = { _id: new ObjectId(id) };
