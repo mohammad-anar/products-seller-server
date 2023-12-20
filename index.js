@@ -3,6 +3,8 @@ const express = require("express");
 const cors = require("cors");
 // DOT ENV
 require("dotenv").config();
+//jwt 
+const jwt = require('jsonwebtoken');
 // MONGO DB
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 // MAKE APP
@@ -34,7 +36,16 @@ async function run() {
     const cartCollection = db.collection("carts");
     const favouriteCollection = db.collection("favourites");
 
-    // get products
+    // jwt apis ===========================
+
+    app.post("/access-token", async (req, res) => {
+      const payload = req.body;
+     const token = jwt.sign(payload, process.env.JWT_SECRET, {expiresIn: "7d"});
+     res.send(token)
+
+    })
+
+    // get products==============================
     app.get("/products", async (req, res) => {
       const result = await productCollection.find().toArray();
       res.send(result);
@@ -151,6 +162,8 @@ async function run() {
         console.log(error);
       }
     });
+    // sign up api or auth api here ==============================
+    app.post()
 
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
