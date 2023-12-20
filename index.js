@@ -3,8 +3,8 @@ const express = require("express");
 const cors = require("cors");
 // DOT ENV
 require("dotenv").config();
-//jwt 
-const jwt = require('jsonwebtoken');
+//jwt
+const jwt = require("jsonwebtoken");
 // MONGO DB
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 // MAKE APP
@@ -12,9 +12,23 @@ const app = express();
 // running port
 const port = process.env.PORT || 5001;
 
-// middle ware
+// middleware
 app.use(cors());
 app.use(express.json());
+
+const verifyToken = (req, res, next) => {
+  const bearer_token = req.headers?.authorization;
+  const token = bearer_token.split(" ")[1];
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      console.log(err);
+      return res.status(403).send({message: "unauthorize access"})
+    }else{
+      req.user = decoded.email;
+      next();
+    }
+  });
+};
 
 // mongodb connection uri
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.zav38m0.mongodb.net/?retryWrites=true&w=majority`;
@@ -40,10 +54,11 @@ async function run() {
 
     app.post("/access-token", async (req, res) => {
       const payload = req.body;
-     const token = jwt.sign(payload, process.env.JWT_SECRET, {expiresIn: "7d"});
-     res.send(token)
-
-    })
+      const token = jwt.sign(payload, process.env.JWT_SECRET, {
+        expiresIn: "7d",
+      });
+      res.send(token);
+    });
 
     // get products==============================
     app.get("/products", async (req, res) => {
@@ -55,14 +70,16 @@ async function run() {
       const id = req.params?.id;
       console.log(id, "form single product");
       const productId = new ObjectId(id);
-      const query = {_id : productId}
+      const query = { _id: productId };
       const result = await productCollection.findOne(query);
       res.send(result);
     });
 
     // carts api=========================================
-    app.get("/carts", async (req, res) => {
+    app.get("/carts", verifyToken, async (req, res) => {
       try {
+        const verifyUser = req.user;
+        
         const result = await cartCollection.find().toArray();
         const count = await cartCollection.estimatedDocumentCount();
         res.send({ data: result, count });
@@ -163,7 +180,7 @@ async function run() {
       }
     });
     // sign up api or auth api here ==============================
-    app.post()
+    app.post();
 
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
