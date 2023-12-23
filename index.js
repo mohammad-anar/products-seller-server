@@ -22,8 +22,8 @@ const verifyToken = (req, res, next) => {
   jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
     if (err) {
       console.log(err);
-      return res.status(403).send({message: "unauthorize access"})
-    }else{
+      return res.status(403).send({ message: "unauthorize access" });
+    } else {
       req.user = decoded.email;
       next();
     }
@@ -65,11 +65,15 @@ async function run() {
     // get products==============================
     app.get("/products", async (req, res) => {
       const limit = Number(req.query?.size);
-      const pageNumber= Number(req.query?.page);
+      const pageNumber = Number(req.query?.page);
       const skip = limit * pageNumber;
       const count = await productCollection.estimatedDocumentCount();
-      const result = await productCollection.find({}).skip(skip).limit(limit).toArray();
-      res.send({result, count});
+      const result = await productCollection
+        .find({})
+        .skip(skip)
+        .limit(limit)
+        .toArray();
+      res.send({ result, count });
     });
     // get single product by id
     app.get("/products/:id", async (req, res) => {
@@ -86,8 +90,8 @@ async function run() {
       try {
         const email = req.query?.email;
         const query = {
-          email
-        }
+          email,
+        };
         const result = await cartCollection.find(query).toArray();
         const count = await cartCollection.estimatedDocumentCount();
         res.send({ data: result, count });
@@ -95,7 +99,7 @@ async function run() {
         console.log(error);
       }
     });
-    app.post("/carts",verifyToken, async (req, res) => {
+    app.post("/carts", verifyToken, async (req, res) => {
       try {
         const email = req.query.email;
         const { id } = req.body;
@@ -177,7 +181,7 @@ async function run() {
       }
     });
     // delete favoueite
-    app.delete("/favourites/:id",verifyToken, async (req, res) => {
+    app.delete("/favourites/:id", verifyToken, async (req, res) => {
       try {
         const id = req?.params?.id;
         console.log(id, "delete fav");
@@ -191,12 +195,25 @@ async function run() {
     });
     // user related api here ==============================
 
+    app.get("/users", async (req, res) => {
+      try {
+        const result = await userCollection.find().toArray();
+        res.send(result);
+      } catch (err) {
+        console.log(err);
+      }
+    });
+
     app.post("/users", async (req, res) => {
-      const data = req.body;
-      const date = new Date();
-      const user = {...data, createdAt: date.toGMTString(), role: "user"}
-      const result = await userCollection.insertOne(user);
-      res.send(result);
+      try {
+        const data = req.body;
+        const date = new Date();
+        const user = { ...data, createdAt: date.toGMTString(), role: "user" };
+        const result = await userCollection.insertOne(user);
+        res.send(result);
+      } catch (err) {
+        console.log(err);
+      }
     });
 
     console.log(
