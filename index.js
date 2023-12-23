@@ -85,6 +85,16 @@ async function run() {
       res.send(result);
     });
 
+    app.post(`/products`, verifyToken, async (req, res) => {
+      try {
+        const product = req.body;
+        const result = await productCollection.insertOne(product);
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
     // carts api=========================================
     app.get("/carts", verifyToken, async (req, res) => {
       try {
@@ -211,6 +221,40 @@ async function run() {
         const user = { ...data, createdAt: date.toGMTString(), role: "user" };
         const result = await userCollection.insertOne(user);
         res.send(result);
+      } catch (err) {
+        console.log(err);
+      }
+    });
+    app.delete("/users/:id", async (req, res) => {
+      try {
+        const id = req?.params?.id;
+        const query = { _id: new ObjectId(id) };
+        if (id) {
+          const result = await userCollection.deleteOne(query);
+          res.send(result);
+        } else {
+          res.status(400).send({ message: "user not found" });
+        }
+      } catch (err) {
+        console.log(err);
+      }
+    });
+    app.patch("/users/:id", async (req, res) => {
+      try {
+        const id = req?.params?.id;
+        const role = req?.query?.role;
+        const query = { _id: new ObjectId(id) };
+        const updatedDoc = {
+          $set: {
+            role: role,
+          },
+        };
+        if (id) {
+          const result = await userCollection.updateOne(query, updatedDoc);
+          res.send(result);
+        } else {
+          res.status(400).send({ message: "user not found" });
+        }
       } catch (err) {
         console.log(err);
       }
