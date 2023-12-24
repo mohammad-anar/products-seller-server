@@ -9,8 +9,19 @@ const jwt = require("jsonwebtoken");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 // MAKE APP
 const app = express();
+//ssl commerz
+const SSLCommerzPayment = require('sslcommerz-lts');
 // running port
 const port = process.env.PORT || 5001;
+
+
+// SSL commerz ======================= 
+// store id 
+const store_id = process.env.STORE_ID;
+//store password
+const store_passwd = process.env.STORE_PASS;
+//true for live, false for sandbox
+const is_live = false 
 
 // middleware
 app.use(cors());
