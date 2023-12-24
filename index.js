@@ -10,18 +10,17 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 // MAKE APP
 const app = express();
 //ssl commerz
-const SSLCommerzPayment = require('sslcommerz-lts');
+const SSLCommerzPayment = require("sslcommerz-lts");
 // running port
 const port = process.env.PORT || 5001;
 
-
-// SSL commerz ======================= 
-// store id 
+// SSL commerz =======================
+// store id
 const store_id = process.env.STORE_ID;
 //store password
 const store_passwd = process.env.STORE_PASS;
 //true for live, false for sandbox
-const is_live = false 
+const is_live = false;
 
 // middleware
 app.use(cors());
@@ -55,7 +54,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    await client.connect();
+    // await client.connect();
     // electronics db and collection are included
     const db = client.db("du-electronics");
     const productCollection = db.collection("products");
@@ -67,34 +66,46 @@ async function run() {
     // jwt apis ===========================
 
     app.post("/access-token", async (req, res) => {
-      const payload = req.body;
-      const token = jwt.sign(payload, process.env.JWT_SECRET, {
-        expiresIn: "7d",
-      });
-      res.send(token);
+      try {
+        const payload = req.body;
+        const token = jwt.sign(payload, process.env.JWT_SECRET, {
+          expiresIn: "7d",
+        });
+        res.send(token);
+      } catch (error) {
+        console.log(error);
+      }
     });
 
     // get products==============================
     app.get("/products", async (req, res) => {
-      const limit = Number(req.query?.size);
-      const pageNumber = Number(req.query?.page);
-      const skip = limit * pageNumber;
-      const count = await productCollection.estimatedDocumentCount();
-      const result = await productCollection
-        .find({})
-        .skip(skip)
-        .limit(limit)
-        .toArray();
-      res.send({ result, count });
+      try {
+        const limit = Number(req.query?.size);
+        const pageNumber = Number(req.query?.page);
+        const skip = limit * pageNumber;
+        const count = await productCollection.estimatedDocumentCount();
+        const result = await productCollection
+          .find({})
+          .skip(skip)
+          .limit(limit)
+          .toArray();
+        res.send({ result, count });
+      } catch (error) {
+        console.log(error);
+      }
     });
     // get single product by id
     app.get("/products/:id", async (req, res) => {
-      const id = req.params?.id;
-      console.log(id, "form single product");
-      const productId = new ObjectId(id);
-      const query = { _id: productId };
-      const result = await productCollection.findOne(query);
-      res.send(result);
+      try {
+        const id = req.params?.id;
+        console.log(id, "form single product");
+        const productId = new ObjectId(id);
+        const query = { _id: productId };
+        const result = await productCollection.findOne(query);
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
     });
 
     app.post(`/products`, verifyToken, async (req, res) => {
@@ -169,10 +180,13 @@ async function run() {
       }
     });
 
-    // favourite apis
+    // favourite apis======================================================
     app.get("/favourites", verifyToken, async (req, res) => {
       try {
-        const result = await favouriteCollection.find().toArray();
+        const email = req.query?.email;
+        console.log(email);
+        const query = { email: email };
+        const result = await favouriteCollection.find(query).toArray();
         res.send(result);
       } catch (error) {
         console.log(error);
@@ -181,6 +195,8 @@ async function run() {
     app.post("/favourites", verifyToken, async (req, res) => {
       try {
         const { id } = req.body;
+        const { email } = req.body;
+        console.log(email, id, "favourite");
         const productId = new ObjectId(id);
         const query = { _id: productId };
 
@@ -194,6 +210,7 @@ async function run() {
           // insert item
           const result = await favouriteCollection.insertOne({
             ...cartProduct,
+            email,
             quantity: 1,
           });
           return res.send(result);
@@ -219,7 +236,14 @@ async function run() {
 
     app.get("/users", async (req, res) => {
       try {
-        const result = await userCollection.find().toArray();
+        const email = req.query.email;
+        console.log(email);
+        const query = {};
+        if (email) {
+          query.email = email;
+        }
+        console.log(query);
+        const result = await userCollection.find(query).toArray();
         res.send(result);
       } catch (err) {
         console.log(err);
@@ -229,7 +253,12 @@ async function run() {
     app.post("/users", async (req, res) => {
       try {
         const data = req.body;
+        const query = { email: data?.email };
         const date = new Date();
+        const isExist = await userCollection.findOne(query);
+        if (isExist?.email) {
+          return;
+        }
         const user = { ...data, createdAt: date.toGMTString(), role: "user" };
         const result = await userCollection.insertOne(user);
         res.send(result);
@@ -274,7 +303,7 @@ async function run() {
     // payment related apis =========================================
     app.post("/payment", async (req, res) => {
       const tran_id = new ObjectId().toString();
-      try{
+      try {
         const pay_info = req.body;
         const data = {
           total_amount: pay_info?.price,
@@ -282,65 +311,83 @@ async function run() {
           tran_id: tran_id, // use unique tran_id for each api call
           success_url: `http://localhost:5001/paymnet/success/${tran_id}`,
           fail_url: `http://localhost:5001/paymnet/fail/${tran_id}`,
-          cancel_url: 'http://localhost:3030/cancel',
-          ipn_url: 'http://localhost:3030/ipn',
-          shipping_method: 'Courier',
-          product_name: 'Computer.',
-          product_category: 'Electronic',
-          product_profile: 'general',
+          cancel_url: "http://localhost:3030/cancel",
+          ipn_url: "http://localhost:3030/ipn",
+          shipping_method: "Courier",
+          product_name: "Computer.",
+          product_category: "Electronic",
+          product_profile: "general",
           cus_name: pay_info?.name,
           cus_email: pay_info?.user_email,
-          cus_add1:  pay_info?.address,
-          cus_add2:  pay_info?.address,
-          cus_city:  pay_info?.address,
-          cus_state:  pay_info?.address,
+          cus_add1: pay_info?.address,
+          cus_add2: pay_info?.address,
+          cus_city: pay_info?.address,
+          cus_state: pay_info?.address,
           cus_postcode: pay_info?.postCode || "not provided",
           cus_country: pay_info?.address,
           cus_phone: pay_info?.phone,
-          cus_fax: '01711111111',
+          cus_fax: "01711111111",
           ship_name: pay_info?.name,
-          ship_add1:  pay_info?.address,
-          ship_add2:  pay_info?.address,
-          ship_city:  pay_info?.address,
-          ship_state:  pay_info?.address,
+          ship_add1: pay_info?.address,
+          ship_add2: pay_info?.address,
+          ship_city: pay_info?.address,
+          ship_state: pay_info?.address,
           ship_postcode: pay_info?.postCode || "not provided",
           ship_country: pay_info?.address,
-      };
-      // initialize ssl commerz 
-      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live)
-      sslcz.init(data).then(apiResponse => {
+        };
+        // initialize ssl commerz
+        const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+        sslcz.init(data).then((apiResponse) => {
           // Redirect the user to payment gateway
-          let GatewayPageURL = apiResponse.GatewayPageURL
-          res.send({url: GatewayPageURL})
+          let GatewayPageURL = apiResponse.GatewayPageURL;
+          res.send({ url: GatewayPageURL });
           const finalOrder = {
-              ...pay_info, tran_id, paid_status: false
-          }
-          // save payment to db 
-          paymentCollection.insertOne(finalOrder)
-      });
-      }catch(error){
+            ...pay_info,
+            tran_id,
+            paid_status: false,
+          };
+          // save payment to db
+          paymentCollection.insertOne(finalOrder);
+        });
+      } catch (error) {
         console.log(error);
       }
-    })
+    });
 
     app.post("/paymnet/success/:tranId", async (req, res) => {
-      const query = {tran_id: req?.params?.tranId};
-      const result = await paymentCollection.updateOne(query, {$set:{paid_status: true}});
+      try {
+        const query = { tran_id: req?.params?.tranId };
+        const result = await paymentCollection.updateOne(query, {
+          $set: { paid_status: true },
+        });
 
-      if(result.modifiedCount > 0){
-        res.redirect(`http://localhost:5173/payment/success/${req?.params?.tranId}`)
-      }else{
-        res.redirect(`http://localhost:5173/payment/fail/${req?.params?.tranId}`)
+        if (result.modifiedCount > 0) {
+          res.redirect(
+            `http://localhost:5173/payment/success/${req?.params?.tranId}`
+          );
+        } else {
+          res.redirect(
+            `http://localhost:5173/payment/fail/${req?.params?.tranId}`
+          );
+        }
+      } catch (error) {
+        console.log(error);
       }
-    })
+    });
     app.post("/paymnet/fail/:tranId", async (req, res) => {
-      const query = {tran_id: req?.params?.tranId};
-      const result = await paymentCollection.deleteOne(query);
+      try {
+        const query = { tran_id: req?.params?.tranId };
+        const result = await paymentCollection.deleteOne(query);
 
-      if(result.deletedCount > 0){
-        res.redirect(`http://localhost:5173/payment/fail/${req?.params?.tranId}`)
+        if (result.deletedCount > 0) {
+          res.redirect(
+            `http://localhost:5173/payment/fail/${req?.params?.tranId}`
+          );
+        }
+      } catch (error) {
+        console.log(error);
       }
-    })
+    });
 
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
