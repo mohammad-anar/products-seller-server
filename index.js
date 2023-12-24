@@ -62,6 +62,7 @@ async function run() {
     const cartCollection = db.collection("carts");
     const favouriteCollection = db.collection("favourites");
     const userCollection = db.collection("users");
+    const paymentCollection = db.collection("payments");
 
     // jwt apis ===========================
 
@@ -270,6 +271,76 @@ async function run() {
         console.log(err);
       }
     });
+    // payment related apis =========================================
+    app.post("/payment", async (req, res) => {
+      const tran_id = new ObjectId().toString();
+      try{
+        const pay_info = req.body;
+        const data = {
+          total_amount: pay_info?.price,
+          currency: pay_info?.currency,
+          tran_id: tran_id, // use unique tran_id for each api call
+          success_url: `http://localhost:5001/paymnet/success/${tran_id}`,
+          fail_url: `http://localhost:5001/paymnet/fail/${tran_id}`,
+          cancel_url: 'http://localhost:3030/cancel',
+          ipn_url: 'http://localhost:3030/ipn',
+          shipping_method: 'Courier',
+          product_name: 'Computer.',
+          product_category: 'Electronic',
+          product_profile: 'general',
+          cus_name: pay_info?.name,
+          cus_email: pay_info?.user_email,
+          cus_add1:  pay_info?.address,
+          cus_add2:  pay_info?.address,
+          cus_city:  pay_info?.address,
+          cus_state:  pay_info?.address,
+          cus_postcode: pay_info?.postCode || "not provided",
+          cus_country: pay_info?.address,
+          cus_phone: pay_info?.phone,
+          cus_fax: '01711111111',
+          ship_name: pay_info?.name,
+          ship_add1:  pay_info?.address,
+          ship_add2:  pay_info?.address,
+          ship_city:  pay_info?.address,
+          ship_state:  pay_info?.address,
+          ship_postcode: pay_info?.postCode || "not provided",
+          ship_country: pay_info?.address,
+      };
+      // initialize ssl commerz 
+      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live)
+      sslcz.init(data).then(apiResponse => {
+          // Redirect the user to payment gateway
+          let GatewayPageURL = apiResponse.GatewayPageURL
+          res.send({url: GatewayPageURL})
+          const finalOrder = {
+              ...pay_info, tran_id, paid_status: false
+          }
+          // save payment to db 
+          paymentCollection.insertOne(finalOrder)
+      });
+      }catch(error){
+        console.log(error);
+      }
+    })
+
+    app.post("/paymnet/success/:tranId", async (req, res) => {
+      const query = {tran_id: req?.params?.tranId};
+      const result = await paymentCollection.updateOne(query, {$set:{paid_status: true}});
+
+      if(result.modifiedCount > 0){
+        res.redirect(`http://localhost:5173/payment/success/${req?.params?.tranId}`)
+      }else{
+        res.redirect(`http://localhost:5173/payment/fail/${req?.params?.tranId}`)
+      }
+    })
+    app.post("/paymnet/fail/:tranId", async (req, res) => {
+      const query = {tran_id: req?.params?.tranId};
+      const result = await paymentCollection.deleteOne(query);
+
+      if(result.deletedCount > 0){
+        res.redirect(`http://localhost:5173/payment/fail/${req?.params?.tranId}`)
+      }
+    })
 
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
